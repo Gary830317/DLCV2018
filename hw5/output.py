@@ -8,6 +8,7 @@ from keras.layers import *
 from keras.models import *
 from keras.applications.resnet50 import ResNet50
 from keras.preprocessing.sequence import pad_sequences
+import os
 import sys
 from reader import readShortVideo
 import pandas as pd
