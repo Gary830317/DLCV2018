@@ -15,12 +15,16 @@ Team Members:
 ```
 python3 train.py -tr <path/to/Fashion_MNIST_student/train> 
 ```
+- 例如: python3 train.py -tr Fashion_MNIST_student/train/
+
 - 會在 model 資料夾中存 train 好的 model weight。
 
 ## Testing:
 ```
 python3 test.py -te <path/to/Fashion_MNIST_student/test> -to <output/path>
 ```
+- 例如: python3 test.py -te Fashion_MNIST_student/test/ -to ./
+
 - 會在 output path 存 output.csv。
 
 # Task 2 
