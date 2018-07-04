@@ -1,5 +1,14 @@
 # DLCV Final Challenge 1
 
+Team: 科技先生
+
+Team Members:
+
+1. r05942102 王冠驊
+2. f03942038 鍾佳豪
+3. r06942039 何明倩
+4. r06942142 李奕欣
+
 # Task 1
 
 ## Training:
