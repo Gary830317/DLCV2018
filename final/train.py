@@ -1,179 +1,107 @@
-
-# coding: utf-8
-
-# In[1]:
-
-
-import os
-import cv2
-import sys
+# Import libraries
+from keras.layers import Dense, MaxPooling2D, Conv2D, Dropout, LeakyReLU, MaxPool2D
+from keras.layers import Flatten, InputLayer
+from keras.layers.normalization import BatchNormalization
+from keras.models import Sequential
+from keras.utils import np_utils
+from keras.initializers import Constant
+from keras.datasets import fashion_mnist
 import numpy as np
+from glob import glob
 import matplotlib.pyplot as plt
-from keras.layers import *
-from keras.models import *
-from keras.optimizers import *
-from keras.utils import to_categorical
-from keras.callbacks import EarlyStopping
-from keras.applications.resnet50 import ResNet50
-from keras.callbacks import ModelCheckpoint
-from keras.preprocessing.image import ImageDataGenerator
+from scipy.misc import imresize,imread,imsave
+from sklearn.cross_validation import train_test_split
+import os
+from keras.models import Model,load_model
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+import argparse
+
+parser = argparse.ArgumentParser(description="task1")
+parser.add_argument("-tr","--train_folder",type = str, default = 'data/train/')
+parser.add_argument("-te","--test_folder",type = str, default = 'data/test/')
+parser.add_argument("-to","--save_path",type = str, default = './')
+args = parser.parse_args()
 
 
-# In[2]:
+# Hyper Parameters
+train_folder = args.train_folder
+test_folder = args.test_folder
+save_path = args.save_path
 
+# Load data
+file_name = train_folder
+image_file = np.array(glob(os.path.join(file_name,'*')))
+print(image_file.shape)
+labels = []
+#label_file = np.array(glob('../HW5_data/FullLengthVideos/labels/train/*.txt'))
+for i,file in enumerate(image_file):
+    img_name = np.array(glob(os.path.join(file,'*.png')))
+    img = np.array([imread(name) for name in img_name])
+    if i == 0:
+        imgs = img
+    else:
+        imgs = np.append(imgs,img,0)
+    label = np.zeros(img.shape[0])+i
+    labels = np.append(labels,label)
+print(imgs.shape,labels.shape)
+plt.imshow(imgs[0])
+plt.show()
 
-np.random.seed(100)
+x_train, x_valid, y_train, y_valid = train_test_split( imgs, labels, test_size=0.1, random_state=1 )
+print(x_train.shape,x_valid.shape)
+print(y_train.shape,y_valid.shape)
+# Function load_minst is available in git.
+#(x_semi_train, y_semi_train), (x_test, y_test) = fashion_mnist.load_data()
+#x_semi_train = x_semi_train.astype('float32') / 255
+#x_semi_train = x_semi_train.reshape(x_semi_train.shape[0], 28, 28, 1)
+# Prepare datasets
+# This step contains normalization and reshaping of input.
+# For output, it is important to change number to one-hot vector. 
+#idx = np.random.randint(low = 0,high = 60000,size = 2000)
+x_train = x_train.astype('float32') / 255
+x_train = x_train.reshape(x_train.shape[0], 28, 28, 1)
+#x_train = np.repeat(x_train.astype('float32'), 3, 3)
+x_valid = x_valid.astype('float32') / 255
+x_valid = x_valid.reshape(x_valid.shape[0], 28, 28, 1)
+#x_valid = np.repeat(x_valid.astype('float32'), 3, 3)
+#x_test = x_test.astype('float32') / 255
+#x_test = x_test.reshape(x_test.shape[0], 28, 28, 1)
+#x_test = np.repeat(x_test.astype('float32'), 3, 3)
 
-shot = int(sys.argv[1]) #10 
-train_base_dir = sys.argv[2] #'task2_dataset/base'
-train_novel_dir = sys.argv[3] #'task2_dataset/novel'
-output_dir = sys.argv[4] #'./'
+y_train = np_utils.to_categorical(y_train, 10)
+y_valid = np_utils.to_categorical(y_valid, 10)
+#y_test = np_utils.to_categorical(y_test, 10)
+# Create model in Keras
+num_classes = 10
 
-use_trained_resnet = False
+model = Sequential()
+model.add(InputLayer(input_shape=(28, 28, 1)))
+model.add(Conv2D(filters=32, kernel_size=(3, 3), padding="same", input_shape=x_train.shape[1:], activation='relu'))
+model.add(Conv2D(filters=64, kernel_size=(3, 3), padding="same", activation='relu'))
+#model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation='relu'))
+model.add(MaxPool2D(pool_size=(2, 2)))
+model.add(Dropout(0.5))
+model.add(Conv2D(filters=128, kernel_size=(3, 3), padding="same", activation='relu'))
+model.add(Conv2D(filters=256, kernel_size=(3, 3), padding="valid", activation='relu'))
+#model.add(Conv2D(filters=512, kernel_size=(3, 3), padding="valid", activation='relu'))
+model.add(MaxPool2D(pool_size=(3, 3)))
+model.add(Dropout(0.5))
+model.add(Flatten())
+model.add(Dense(256,activation='relu'))
+#model.add(ReLU())
+model.add(Dropout(0.5))
+model.add(Dense(256,activation='relu'))
+#model.add(ReLU())
+#model2.add(Dropout(0.5))
+model.add(Dense(num_classes, activation='softmax'))
 
-e = {1:5, 5:1, 10:1}
-epoch = e[shot]
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+#model = load_model('task1.h5')
+callbacks = [ ModelCheckpoint('checkpoint/task_my_vgg.h5', monitor='val_loss', save_best_only=True, verbose=0) ]
+history = model.fit(x_train, y_train, epochs=100, batch_size=64, validation_data=(x_valid, y_valid),callbacks=callbacks)
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+np.save('loss/task_my_vgg.npy',np.array([loss,val_loss]))
 
-im_length, im_width = 224, 224
-
-
-# In[3]:
-
-
-datagen = ImageDataGenerator(
-    rotation_range=20,
-    width_shift_range=0.2,
-    height_shift_range=0.2,
-    horizontal_flip=True,
-    validation_split=0.0)
-
-
-# In[4]:
-
-
-label_dir = [file for file in os.listdir(train_base_dir) if file.startswith('class')]
-label_dir.sort()
-train_image = []
-for d in label_dir:
-    images_dir = [file for file in os.listdir(os.path.join(train_base_dir, d, 'train')) if file.endswith('.png')]
-    images_dir.sort()
-    for image in images_dir:
-        train_image.append(cv2.resize((cv2.imread(os.path.join(train_base_dir,d,'train',image))/255).astype('float32'),(im_length, im_width),interpolation=cv2.INTER_CUBIC))
-train_image = np.array(train_image)
-    
-train_label = []
-for i in range(80):
-    train_label.extend([i]*500) 
-train_label = to_categorical(train_label, num_classes=80)
-
-train_label_dic = np.array([int(label[-2:]) for label in label_dir])
-
-
-# In[5]:
-
-
-label_dir = [file for file in os.listdir(train_base_dir) if file.startswith('class')]
-label_dir.sort()
-
-valid_image = []
-for d in label_dir:
-    images_dir = [file for file in os.listdir(os.path.join(train_base_dir, d, 'test')) if file.endswith('.png')]
-    images_dir.sort()
-    for image in images_dir:
-        valid_image.append(cv2.resize((cv2.imread(os.path.join(train_base_dir,d,'test',image))/255).astype('float32'),(im_length, im_width),interpolation=cv2.INTER_CUBIC))
-valid_image = np.array(valid_image)
-        
-valid_label = []
-for i in range(80):
-    valid_label.extend([i]*100) 
-valid_label = to_categorical(valid_label, num_classes=80)    
-    
-valid_label_dic = train_label_dic
-
-
-# In[6]:
-
-
-label_dir = [file for file in os.listdir(train_novel_dir) if file.startswith('class')]
-label_dir.sort()
-
-novel_image = []
-for d in label_dir:
-    images_dir = [file for file in os.listdir(os.path.join(train_novel_dir, d, 'train')) if file.endswith('.png')]
-    images_dir.sort()
-    for image in images_dir:
-        novel_image.append(cv2.resize((cv2.imread(os.path.join(train_novel_dir,d,'train',image))/255).astype('float32'),(im_length, im_width),interpolation=cv2.INTER_CUBIC))
-novel_image = np.array(novel_image)
-        
-novel_label = []
-for i in range(20):
-    novel_label.extend([i]*500) 
-    
-one_hot_novel_label = to_categorical(novel_label, num_classes=20) 
-    
-novel_label_dic = np.array([str(label[-2:]) for label in label_dir])
-
-
-# In[7]:
-
-
-select = np.random.choice(500, 20*shot)
-select = select+np.repeat(np.array(range(0,20))*500,shot)
-
-shots_novel_image = novel_image[select]
-shots_novel_label = np.array(novel_label)[select]
-shots_one_hot_novel_label = one_hot_novel_label[select]
-
-
-# In[ ]:
-
-
-Resnet = ResNet50(include_top=True, weights=None, classes=80)
-#Resnet.summary()
-
-
-# In[ ]:
-
-
-if use_trained_resnet == True:
-    Resnet.load_weights('data_augmentation_Resnet.h5')
-else:
-    print('Training Resnet...')
-
-    opt = Adadelta(lr=0.5, rho=0.95, epsilon=None, decay=0.0)
-    Resnet.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
-    checkpointer = ModelCheckpoint(filepath='Resnet.h5', verbose=1, save_best_only=True)
-    Resnet_history = Resnet.fit_generator(datagen.flow(train_image, train_label, batch_size=16, subset='training'),
-                                          steps_per_epoch=len(train_image)/4, epochs=100, shuffle=True, 
-                                          validation_data = (valid_image, valid_label),
-                                          callbacks=[EarlyStopping(patience = 5), checkpointer])
-
-
-# In[9]:
-
-
-layer_name = 'flatten_1' # modify the layer name every time you run the program
-
-extractor = Model(inputs=Resnet.input, outputs=Resnet.get_layer(layer_name).output)
-
-
-# In[10]:
-
-
-inputs = Input(shape=(im_length, im_width, 3))
-x = extractor(inputs)
-out = Dense(20, activation='softmax')(x)
-mlp2 = Model(inputs = inputs, outputs = out)
-
-opt = Adadelta(lr=0.5, rho=0.95, epsilon=None, decay=0.0)
-mlp2.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
-
-mlp2.fit_generator(datagen.flow(shots_novel_image, shots_one_hot_novel_label, batch_size=16),
-                  steps_per_epoch=len(shots_novel_image), epochs=epoch, shuffle=True)
-
-
-# In[11]:
-
-
-mlp2.save_weights(os.path.join(output_dir, '{}_shot_Resnet.h5'.format(shot)))
-
+#score = model.evaluate(x_test, y_test, verbose=1)
+#print(score)
