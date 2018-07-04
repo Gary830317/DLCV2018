@@ -44,8 +44,6 @@ for i,file in enumerate(image_file):
     label = np.zeros(img.shape[0])+i
     labels = np.append(labels,label)
 print(imgs.shape,labels.shape)
-plt.imshow(imgs[0])
-plt.show()
 
 x_train, x_valid, y_train, y_valid = train_test_split( imgs, labels, test_size=0.1, random_state=1 )
 print(x_train.shape,x_valid.shape)
@@ -101,7 +99,7 @@ callbacks = [ ModelCheckpoint('checkpoint/task_my_vgg.h5', monitor='val_loss', s
 history = model.fit(x_train, y_train, epochs=100, batch_size=64, validation_data=(x_valid, y_valid),callbacks=callbacks)
 loss = history.history['loss']
 val_loss = history.history['val_loss']
-np.save('loss/task_my_vgg.npy',np.array([loss,val_loss]))
+np.save('./task_my_vgg.npy',np.array([loss,val_loss]))
 
 #score = model.evaluate(x_test, y_test, verbose=1)
 #print(score)

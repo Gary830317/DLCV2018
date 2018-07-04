@@ -39,8 +39,7 @@ path = test_folder
 imgs = np.array([imread(os.path.join(path,str(i)+'.png')) for i in range(10000)])
 
 print(imgs.shape)
-plt.imshow(imgs[0])
-plt.show()
+
 x_test = imgs.astype('float32') / 255
 x_test = x_test.reshape(x_test.shape[0], 28, 28, 1)
 #x_test = np.repeat(x_test.astype('float32'), 3, 3)
@@ -71,7 +70,7 @@ model = load_model('checkpoint/task_my_vgg.h5')
 y_predict = model.predict(x_test)
 
 
-with open('my_vgg.csv', 'w', newline='') as csvfile:
+with open(os.path.join(save_path,'my_vgg.csv'), 'w', newline='') as csvfile:
     #writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer = csv.writer(csvfile)
     y_predict = np.argmax(y_predict,1)
