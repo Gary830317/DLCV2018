@@ -4,7 +4,7 @@
 
 ## Output:
 ```
-bash task2.sh <path/to/novel> <path/to/test> <output/path>
+bash task2_output.sh <path/to/novel> <path/to/test> <output/path>
 ```
 - 例如: bash task2_output.sh task2_dataset/novel test ./
 
