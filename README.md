@@ -1,4 +1,4 @@
-## Deep Learning for Computer Vision, 2017
+## Deep Learning for Computer Vision, (2017 Spring), National Taiwan University
 
 Lecturer: Prof. Yu-Chiang Frank Wang
 
